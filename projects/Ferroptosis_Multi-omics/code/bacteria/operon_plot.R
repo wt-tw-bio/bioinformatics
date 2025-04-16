@@ -6,14 +6,44 @@ library(dplyr)
 library(stringr)
 library(RColorBrewer)
 library(viridis)
+library(patchwork)
+
+perform_files <- function(diff_path, ref){
+  # Load and process operon data
+  operon_file <- list.files(diff_path, pattern = "^operon.*", full.names = TRUE)
+  all_data <- fread(operon_file[ref], header = FALSE, fill = TRUE, sep = "\t") %>% as.data.frame()
+  operon <- unique(all_data$V1)
+  
+  split_vector <- function(vec, max_length) {
+    result <- list()
+    start <- 1
+    n <- length(vec)
+    
+    while (start <= n) {
+      end <- min(start + max_length - 1, n)
+      result <- c(result, list(vec[start:end]))
+      start <- end + 1
+    }
+    
+    return(result)
+  }
+  
+  if(length(operon) > 17) {
+    operon <- split_vector(operon, 17)
+    res <- lapply(operon, function(x){
+      dat <- all_data[all_data$V1 %in% x, ]
+      return(perform_analysis(dat, diff_path = diff_path))
+    })
+    res[["multi_plot"]] <- TRUE
+  }else{
+    res <- perform_analysis(all_data, diff_path = diff_path)
+  }
+  return(res)
+}
 
 
 # Define the main function to execute the analysis and visualization
-perform_analysis <- function(diff_path, ref) {
-  # Load and process operon data
-  operon_file <- list.files(diff_path, pattern = "^operon.*", full.names = TRUE)
-  all_data <- read.table(operon_file[ref], header = FALSE, fill = TRUE, sep = "\t")
-  
+perform_analysis <- function(all_data, diff_path) {
   pathway_data <- all_data[, c(1, 10, 11)]
   pathway_data <- pathway_data[!duplicated(pathway_data), ]
   colnames(pathway_data) <- c("Category", "Pathway", "PValue")
@@ -188,17 +218,55 @@ ggsave("Operon_kegg_plot.png", final_plot, width = 12, height = 10, units = "in"
 
 dir.create("Operon/K2044", recursive = TRUE)
 for(i in folders){
-  final_plot <- perform_analysis(i, ref = 2)
+  final_plot <- perform_files(i, ref = 2)
+  if(!is.null(names(final_plot))){
+    for(n in 1:(length(final_plot)-1)){
+      ggsave(paste0("Operon/K2044/", i, "_", n,".pdf"), final_plot[[n]], width = 16, height = 12)
+    }
+  }else{
   ggsave(paste0("Operon/K2044/", i, ".pdf"), final_plot, width = 16, height = 12)
+  }
 }
 
 
 dir.create("Operon/78578", recursive = TRUE)
 for(i in folders){
-  final_plot <- perform_analysis(i, ref = 1)
-  ggsave(paste0("Operon/78578/", i, ".pdf"), final_plot, width = 16, height = 12)
+  i = "HVKP7"
+  final_plot <- perform_files(i, ref = 1)
+  if(!is.null(names(final_plot))){
+    for(n in 1:(length(final_plot)-1)){
+      ggsave(paste0("Operon/78578/", i, "_", n,".pdf"), final_plot[[n]], width = 16, height = 12)
+    }
+  }else{
+    ggsave(paste0("Operon/78578/", i, ".pdf"), final_plot, width = 16, height = 12)
+  }
 }
 
+i = "HVKP7"
+final_plot <- perform_files(i, ref = 1)
+ggsave(paste0("Operon/78578/", i, "_", 3,".pdf"), final_plot[[3]], width = 4, height = 12)
+
+i = "HVKP8"
+final_plot <- perform_files(i, ref = 1)
+ggsave(paste0("Operon/78578/", i, "_", 2,".pdf"), final_plot[[2]], width = 4, height = 12)
+
+i = "HVKP21"
+final_plot <- perform_files(i, ref = 1)
+ggsave(paste0("Operon/78578/", i, "_", 3,".pdf"), final_plot[[3]], width = 4, height = 12)
+
+i = "HVKP7"
+final_plot <- perform_files(i, ref = 2)
+ggsave(paste0("Operon/K2044/", i, "_", 2,".pdf"), final_plot[[2]], width = 4, height = 12)
+i = "HVKP8"
+final_plot <- perform_files(i, ref = 2)
+ggsave(paste0("Operon/K2044/", i, "_", 2,".pdf"), final_plot[[2]], width = 4, height = 12)
+
+i = "HVKP20"
+final_plot <- perform_files(i, ref = 2)
+ggsave(paste0("Operon/K2044/", i, "_", 2,".pdf"), final_plot[[2]], width = 4, height = 12)
 
 
-debugonce("perform_analysis")
+
+
+a <- perform_files("HVKP21", ref = 2)
+debugonce("perform_files")
